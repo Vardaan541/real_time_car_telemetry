@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connected Car Analytics</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #1b1914;
+            --muted: #5c564c;
+            --line: #ddd6c8;
+            --paper: #f6f3ec;
+            --card: #fffcf7;
+            --accent: #0c6b52;
+            --accent-soft: #e5f3ee;
+            --warn: #8a4b12;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: "Segoe UI", system-ui, sans-serif;
+            line-height: 1.45;
+        }
+
+        main {
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 32px 20px 64px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 2rem;
+            line-height: 1.15;
+        }
+
+        h2 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+        }
+
+        .lead, .note {
+            margin: 0;
+            color: var(--muted);
+            max-width: 68ch;
+        }
+
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 22px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .pipeline li {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.92rem;
+        }
+
+        .pipeline li strong { font-weight: 650; }
+
+        section {
+            margin-top: 28px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 18px 18px 16px;
+        }
+
+        ol.steps {
+            margin: 8px 0 0;
+            padding-left: 1.2rem;
+        }
+
+        ol.steps li + li { margin-top: 4px; }
+
+        .vehicles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .vehicles a {
+            color: var(--ink);
+            text-decoration: none;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px 12px;
+            background: #fff;
+        }
+
+        .vehicles a[aria-current="true"] {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 14px 0 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .dot.wait { background: var(--warn); }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .metric {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--accent-soft);
+        }
+
+        .metric span, .metric small {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        .metric strong {
+            display: block;
+            margin: 4px 0 2px;
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+            font-size: 1.35rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.92rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px 6px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        th { color: var(--muted); font-weight: 650; font-size: 0.78rem; }
+
+        .empty { margin: 12px 0 0; }
+    </style>
+</head>
+<body>
+<main>
+    <p class="eyebrow">Connected Car Analytics Platform</p>
+    <h1>Live vehicle telemetry</h1>
+    <p class="lead">Five simulated vehicles send a reading every 2 seconds. This page shows the reading after it has been stored. Refresh is automatic.</p>
+    <ol class="pipeline">
+        <li><strong>1. Generator</strong> creates the reading</li>
+        <li><strong>2. Kafka</strong> carries it</li>
+        <li><strong>3. Kafka Streams</strong> keeps valid readings</li>
+        <li><strong>4. Spark</strong> writes a batch about every 5 seconds</li>
+        <li><strong>5. Cassandra</strong> stores it</li>
+        <li><strong>6. This page</strong> reads the store</li>
+    </ol>
+
+    <section>
+        <h2>What to do</h2>
+        <ol class="steps">
+            <li>Choose a vehicle. Each one has its own speed, fuel, and location.</li>
+            <li>Read the labeled values below. The units are on each card.</li>
+            <li>Watch for a few seconds. Speed, RPM, and the event time change when the next Spark batch is stored.</li>
+        </ol>
+        <div class="vehicles" id="vehicles"></div>
+        <p class="status"><span class="dot" id="dot"></span><span id="status">Loading the latest stored reading…</span></p>
+    </section>
+
+    <section>
+        <h2 id="reading-title">Latest stored reading</h2>
+        <p class="note" id="reading-note">These values are the newest row in Cassandra for the selected vehicle.</p>
+        <div class="metrics" id="metrics"></div>
+        <p class="empty" id="empty" hidden>No reading is stored for this vehicle yet. Leave the pipeline running and this page will fill in after the next Spark batch.</p>
+    </section>
+
+    <section>
+        <h2>Recent readings</h2>
+        <p class="note">Newest first. This is the short history stored for the same vehicle.</p>
+        <table>
+            <thead>
+            <tr>
+                <th>Event time</th>
+                <th>Speed</th>
+                <th>RPM</th>
+                <th>Fuel</th>
+                <th>Engine</th>
+                <th>Battery</th>
+            </tr>
+            </thead>
+            <tbody id="history"></tbody>
+        </table>
+    </section>
+</main>
+<script>
+    const vehicles = ["vehicle-001", "vehicle-002", "vehicle-003", "vehicle-004", "vehicle-005"];
+    const match = location.pathname.match(/\/api\/telemetry\/([^/]+)/);
+    let vehicleId = match ? decodeURIComponent(match[1]) : "vehicle-001";
+    if (!vehicles.includes(vehicleId)) {
+        vehicleId = "vehicle-001";
+    }
+
+    const vehicleNav = document.getElementById("vehicles");
+    vehicles.forEach(function (id) {
+        const link = document.createElement("a");
+        link.href = "/api/telemetry/" + id + "/latest";
+        link.textContent = id;
+        if (id === vehicleId) {
+            link.setAttribute("aria-current", "true");
+        }
+        vehicleNav.appendChild(link);
+    });
+
+    const metrics = [
+        ["speed", "Speed", "km/h", function (v) { return v.toFixed(1); }],
+        ["rpm", "RPM", "revolutions per minute", function (v) { return String(Math.round(v)); }],
+        ["fuelLevel", "Fuel level", "percent full", function (v) { return v.toFixed(1); }],
+        ["engineTemperature", "Engine temperature", "degrees Celsius", function (v) { return v.toFixed(1); }],
+        ["batteryStatus", "Battery status", "percent charged", function (v) { return v.toFixed(1); }],
+        ["latitude", "Latitude", "decimal degrees", function (v) { return v.toFixed(5); }],
+        ["longitude", "Longitude", "decimal degrees", function (v) { return v.toFixed(5); }]
+    ];
+
+    function formatTime(epochMillis) {
+        return new Date(epochMillis).toLocaleString();
+    }
+
+    function renderLatest(row) {
+        const root = document.getElementById("metrics");
+        const empty = document.getElementById("empty");
+        root.innerHTML = "";
+        if (!row) {
+            empty.hidden = false;
+            document.getElementById("reading-title").textContent = "Latest stored reading";
+            return;
+        }
+        empty.hidden = true;
+        document.getElementById("reading-title").textContent = "Latest stored reading for " + row.vehicleId;
+        document.getElementById("reading-note").textContent = "Event time " + formatTime(row.eventTime) + ". That is when the vehicle generated this reading.";
+        metrics.forEach(function (spec) {
+            const card = document.createElement("div");
+            card.className = "metric";
+            const label = document.createElement("span");
+            label.textContent = spec[1];
+            const value = document.createElement("strong");
+            value.textContent = spec[3](row[spec[0]]);
+            const unit = document.createElement("small");
+            unit.textContent = spec[2];
+            card.appendChild(label);
+            card.appendChild(value);
+            card.appendChild(unit);
+            root.appendChild(card);
+        });
+    }
+
+    function renderHistory(rows) {
+        const body = document.getElementById("history");
+        body.innerHTML = "";
+        rows.forEach(function (row) {
+            const tr = document.createElement("tr");
+            [formatTime(row.eventTime), row.speed.toFixed(1) + " km/h", String(row.rpm), row.fuelLevel.toFixed(1) + "%", row.engineTemperature.toFixed(1) + " °C", row.batteryStatus.toFixed(1) + "%"].forEach(function (text) {
+                const td = document.createElement("td");
+                td.textContent = text;
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+    }
+
+    async function load() {
+        const status = document.getElementById("status");
+        const dot = document.getElementById("dot");
+        try {
+            const latestResponse = await fetch("/api/telemetry/" + encodeURIComponent(vehicleId) + "/latest", {
+                headers: { "Accept": "application/json" }
+            });
+            const historyResponse = await fetch("/api/telemetry/" + encodeURIComponent(vehicleId) + "?limit=5", {
+                headers: { "Accept": "application/json" }
+            });
+            if (latestResponse.status === 404) {
+                renderLatest(null);
+                renderHistory([]);
+                dot.className = "dot wait";
+                status.textContent = "The pipeline is up, but " + vehicleId + " has no stored reading yet.";
+                return;
+            }
+            if (!latestResponse.ok || !historyResponse.ok) {
+                throw new Error("HTTP " + latestResponse.status);
+            }
+            renderLatest(await latestResponse.json());
+            renderHistory(await historyResponse.json());
+            dot.className = "dot";
+            status.textContent = "Showing stored data for " + vehicleId + ". Checked " + new Date().toLocaleTimeString() + ". The next change arrives after a Spark batch, about every 5 seconds.";
+        } catch (error) {
+            dot.className = "dot wait";
+            status.textContent = "Could not read the API. Start the Spring Boot app, then reload this page.";
+        }
+    }
+
+    load();
+    setInterval(load, 5000);
+</script>
+</body>
+</html>

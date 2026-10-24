@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    streams:
+      application-id: car-metrics-telemetry
+      bootstrap-servers: localhost:9092
+      properties:
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.springframework.kafka.support.serializer.JsonSerde
+        spring.json.trusted.packages: com.carmetrics.model
+        spring.json.value.default.type: com.carmetrics.model.VehicleTelemetry
+  cassandra:
+    contact-points: localhost
+    port: 9042
+    keyspace-name: car_metrics
+    local-datacenter: datacenter1
+    schema-action: none
+
+app:
+  generator:
+    enabled: true
+    vehicle-count: 5
+    interval-ms: 2000
+  kafka:
+    raw-topic: vehicle-telemetry
+    processed-topic: vehicle-telemetry-processed
